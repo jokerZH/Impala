@@ -59,13 +59,8 @@ import static org.junit.Assert.fail;
  * API tests for HMS client's  alterPartitions methods.
  */
 @RunWith(Parameterized.class)
-public class TestAlterPartitions {
-
+public class TestAlterPartitions extends MetaStoreClientTest {
   public static final int NEW_CREATE_TIME = 123456789;
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should remove our own copy
-  private static Set<AbstractMetaStoreService> metaStoreServices = null;
   private AbstractMetaStoreService metaStore;
   private IMetaStoreClient client;
 
@@ -73,30 +68,8 @@ public class TestAlterPartitions {
   private static final String TABLE_NAME = "testparttable";
   private static final List<String> PARTCOL_SCHEMA = Lists.newArrayList("yyyy", "mm", "dd");
 
-
-  @Parameterized.Parameters(name = "{0}")
-  public static List<Object[]> getMetaStoreToTest() throws Exception {
-    metaStoreServices = new HashSet<AbstractMetaStoreService>();
-    List<Object[]> result = MetaStoreFactoryForTests.getMetaStores();
-    for(Object[] test: result) {
-      metaStoreServices.add((AbstractMetaStoreService)test[1]);
-    }
-    return result;
-  }
-
-  public TestAlterPartitions(String name, AbstractMetaStoreService metaStore) throws Exception {
+  public TestAlterPartitions(String name, AbstractMetaStoreService metaStore) {
     this.metaStore = metaStore;
-    this.metaStore.start();
-  }
-
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should move this to @AfterParam
-  @AfterClass
-  public static void stopMetaStores() throws Exception {
-    for(AbstractMetaStoreService metaStoreService : metaStoreServices) {
-      metaStoreService.stop();
-    }
   }
 
   @Before
@@ -191,8 +164,8 @@ public class TestAlterPartitions {
     partition.getSd().getCols().add(new FieldSchema("newcol", "string", ""));
   }
 
-  private static void assertPartitionUnchanged(Partition partition, List<String> testValues,
-                                               List<String> partCols) {
+  private void assertPartitionUnchanged(Partition partition, List<String> testValues,
+                                        List<String> partCols) throws MetaException {
     assertFalse(partition.getParameters().containsKey("hmsTestParam001"));
 
     List<String> expectedKVPairs = new ArrayList<>();
@@ -200,15 +173,15 @@ public class TestAlterPartitions {
       expectedKVPairs.add(partCols.get(i) + "=" + testValues.get(i));
     }
     String partPath = StringUtils.join(expectedKVPairs, "/");
-    assertTrue(partition.getSd().getLocation().endsWith("warehouse/testpartdb" +
-            ".db/testparttable/" + partPath));
+    assertTrue(partition.getSd().getLocation().equals(metaStore.getWarehouseRoot()
+        + "/testpartdb.db/testparttable/" + partPath));
     assertNotEquals(NEW_CREATE_TIME, partition.getCreateTime());
     assertNotEquals(NEW_CREATE_TIME, partition.getLastAccessTime());
     assertEquals(2, partition.getSd().getCols().size());
   }
 
-  private static void assertPartitionChanged(Partition partition, List<String> testValues,
-                                             List<String> partCols) {
+  private void assertPartitionChanged(Partition partition, List<String> testValues,
+                                      List<String> partCols) throws MetaException {
     assertEquals("testValue001", partition.getParameters().get("hmsTestParam001"));
 
     List<String> expectedKVPairs = new ArrayList<>();
@@ -216,8 +189,8 @@ public class TestAlterPartitions {
       expectedKVPairs.add(partCols.get(i) + "=" + testValues.get(i));
     }
     String partPath = StringUtils.join(expectedKVPairs, "/");
-    assertTrue(partition.getSd().getLocation().endsWith("warehouse/testpartdb" +
-            ".db/testparttable/" + partPath + "/hh=01"));
+    assertTrue(partition.getSd().getLocation().equals(metaStore.getWarehouseRoot()
+        + "/testpartdb.db/testparttable/" + partPath + "/hh=01"));
     assertEquals(NEW_CREATE_TIME, partition.getCreateTime());
     assertEquals(NEW_CREATE_TIME, partition.getLastAccessTime());
     assertEquals(3, partition.getSd().getCols().size());

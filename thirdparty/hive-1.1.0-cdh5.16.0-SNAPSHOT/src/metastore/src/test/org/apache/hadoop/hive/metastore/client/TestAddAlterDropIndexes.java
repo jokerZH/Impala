@@ -21,10 +21,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -43,7 +43,6 @@ import org.apache.hadoop.hive.metastore.minihms.AbstractMetaStoreService;
 import org.apache.thrift.TException;
 import org.apache.thrift.transport.TTransportException;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,11 +53,7 @@ import org.junit.runners.Parameterized;
  * Tests for creating, altering and dropping indexes.
  */
 @RunWith(Parameterized.class)
-public class TestAddAlterDropIndexes {
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should remove our own copy
-  private static Set<AbstractMetaStoreService> metaStoreServices = null;
+public class TestAddAlterDropIndexes extends MetaStoreClientTest {
   private AbstractMetaStoreService metaStore;
   private IMetaStoreClient client;
 
@@ -68,29 +63,8 @@ public class TestAddAlterDropIndexes {
   private static final String INDEX_TABLE_NAME = TABLE_NAME + "__" + INDEX_NAME + "__";
   private static final short MAX = -1;
 
-  @Parameterized.Parameters(name = "{0}")
-  public static List<Object[]> getMetaStoreToTest() throws Exception {
-    metaStoreServices = new HashSet<AbstractMetaStoreService>();
-    List<Object[]> result = MetaStoreFactoryForTests.getMetaStores();
-    for(Object[] test: result) {
-      metaStoreServices.add((AbstractMetaStoreService)test[1]);
-    }
-    return result;
-  }
-
-  public TestAddAlterDropIndexes(String name, AbstractMetaStoreService metaStore) throws Exception {
+  public TestAddAlterDropIndexes(String name, AbstractMetaStoreService metaStore) {
     this.metaStore = metaStore;
-    this.metaStore.start();
-  }
-
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should move this to @AfterParam
-  @AfterClass
-  public static void stopMetaStores() throws Exception {
-    for(AbstractMetaStoreService metaStoreService : metaStoreServices) {
-      metaStoreService.stop();
-    }
   }
 
   @Before
@@ -148,7 +122,7 @@ public class TestAddAlterDropIndexes {
         .setSerdeName(INDEX_TABLE_NAME)
         .addStorageDescriptorParam(sdParamKey, sdParamValue)
         .build();
-    client.createIndex(index, buildTable(DB_NAME, INDEX_TABLE_NAME));
+    client.createIndex(index, buildIndexTable(DB_NAME, INDEX_TABLE_NAME));
 
     Index resultIndex = client.getIndex(DB_NAME, TABLE_NAME, INDEX_NAME);
     Assert.assertNotNull(resultIndex);
@@ -203,8 +177,8 @@ public class TestAddAlterDropIndexes {
     Table origTable1 = createTable(DB_NAME, origTableName1);
     Table origTable2 = createTable(DB_NAME, origTableName2);
 
-    createIndex(DB_NAME, origTable1, INDEX_NAME, buildTable(DB_NAME, indexNameTableName1));
-    createIndex(DB_NAME, origTable2, INDEX_NAME, buildTable(DB_NAME, indexNameTableName2));
+    createIndex(DB_NAME, origTable1, INDEX_NAME, buildIndexTable(DB_NAME, indexNameTableName1));
+    createIndex(DB_NAME, origTable2, INDEX_NAME, buildIndexTable(DB_NAME, indexNameTableName2));
 
     verifyIndex(DB_NAME, origTableName1, INDEX_NAME, indexNameTableName1);
     verifyIndex(DB_NAME, origTableName2, INDEX_NAME, indexNameTableName2);
@@ -218,7 +192,7 @@ public class TestAddAlterDropIndexes {
 
     // TODO: Special character should not be allowed in index name.
     Table origTable = createTable(DB_NAME, TABLE_NAME);
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     String indexName = "§±!;@#$%^&*()_+}{|-=[]\':|?><";
     createIndex(DB_NAME, origTable, indexName, indexTable);
     verifyIndex(DB_NAME, TABLE_NAME, indexName, INDEX_TABLE_NAME);
@@ -231,7 +205,7 @@ public class TestAddAlterDropIndexes {
     Table origTable = createTable(DB_NAME, TABLE_NAME);
     String indexName = "UPPERCASE_INDEX_NAME";
     String indexTableName = "UPPERCASE_INDEX_TABLE_NAME";
-    Table indexTable = buildTable(DB_NAME, indexTableName);
+    Table indexTable = buildIndexTable(DB_NAME, indexTableName);
     createIndex(DB_NAME, origTable, indexName, indexTable);
     verifyIndex(DB_NAME, TABLE_NAME, indexName.toLowerCase(), indexTableName.toLowerCase());
     client.dropIndex(DB_NAME, TABLE_NAME, indexName, true);
@@ -241,7 +215,7 @@ public class TestAddAlterDropIndexes {
   public void testCreateIndexesWithSameOrigAndIndexTable() throws Exception {
 
     Table origTable = createTable(DB_NAME, TABLE_NAME);
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     createIndex(DB_NAME, origTable, INDEX_NAME, indexTable);
     createIndex(DB_NAME, origTable, INDEX_NAME, indexTable);
     checkIfIndexExists(DB_NAME, TABLE_NAME, INDEX_NAME);
@@ -254,8 +228,8 @@ public class TestAddAlterDropIndexes {
     Table origTable = createTable(DB_NAME, TABLE_NAME);
     String indexTableName1 = origTable.getTableName() + "__" + INDEX_NAME + "_1";
     String indexTableName2 = origTable.getTableName() + "__" + INDEX_NAME + "_2";
-    createIndex(DB_NAME, origTable, INDEX_NAME, buildTable(DB_NAME, indexTableName1));
-    createIndex(DB_NAME, origTable, INDEX_NAME, buildTable(DB_NAME, indexTableName2));
+    createIndex(DB_NAME, origTable, INDEX_NAME, buildIndexTable(DB_NAME, indexTableName1));
+    createIndex(DB_NAME, origTable, INDEX_NAME, buildIndexTable(DB_NAME, indexTableName2));
     checkIfIndexExists(DB_NAME, TABLE_NAME, INDEX_NAME);
     client.dropIndex(DB_NAME, TABLE_NAME, INDEX_NAME, true);
   }
@@ -273,7 +247,7 @@ public class TestAddAlterDropIndexes {
   public void testCreateIndexNullIndexTableName() throws Exception {
 
     Table origTable = createTable(DB_NAME, TABLE_NAME);
-    Table indexTable = buildTable(DB_NAME, null);
+    Table indexTable = buildIndexTable(DB_NAME, null);
     createIndex(DB_NAME, origTable, INDEX_NAME, indexTable);
     checkIfIndexExists(DB_NAME, TABLE_NAME, INDEX_NAME);
   }
@@ -282,7 +256,7 @@ public class TestAddAlterDropIndexes {
   public void testCreateIndexEmptyIndexTableName() throws Exception {
 
     Table origTable = createTable(DB_NAME, TABLE_NAME);
-    Table indexTable = buildTable(DB_NAME, "");
+    Table indexTable = buildIndexTable(DB_NAME, "");
     createIndex(DB_NAME, origTable, INDEX_NAME, indexTable);
     checkIfIndexListEmpty(DB_NAME, TABLE_NAME);
   }
@@ -297,7 +271,7 @@ public class TestAddAlterDropIndexes {
     String indexTableName = origTableName1 + "__" + indexName1;
     Table origTable1 = createTable(DB_NAME, origTableName1);
     Table origTable2 = createTable(DB_NAME, origTableName2);
-    Table indexTable = buildTable(DB_NAME, indexTableName);
+    Table indexTable = buildIndexTable(DB_NAME, indexTableName);
 
     createIndex(DB_NAME, origTable1, indexName1, indexTable);
     createIndex(DB_NAME, origTable2, indexName2, indexTable);
@@ -311,7 +285,7 @@ public class TestAddAlterDropIndexes {
   public void testCreateIndexWithNonExistingDB() throws Exception {
 
     Table origTable = createTable(DB_NAME, TABLE_NAME);
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     createIndex("nonexistingdb", origTable, INDEX_NAME, indexTable);
     checkIfIndexListEmpty(DB_NAME, TABLE_NAME);
   }
@@ -320,14 +294,14 @@ public class TestAddAlterDropIndexes {
   public void testCreateIndexWithNullDBName() throws Exception {
 
     Table origTable = createTable(DB_NAME, TABLE_NAME);
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     createIndex(null, origTable, INDEX_NAME, indexTable);
   }
 
   @Test(expected = InvalidObjectException.class)
   public void testCreateIndexNonExistingOrigTable() throws Exception {
 
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     Index index = buildIndexWithDefaultValues();
     index.setOrigTableName("nonexistingtable");
     client.createIndex(index, indexTable);
@@ -336,7 +310,7 @@ public class TestAddAlterDropIndexes {
   @Test(expected = MetaException.class)
   public void testCreateIndexNullOrigTable() throws Exception {
 
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     Index index = buildIndexWithDefaultValues();
     index.setOrigTableName(null);
     client.createIndex(index, indexTable);
@@ -345,7 +319,7 @@ public class TestAddAlterDropIndexes {
   @Test
   public void testCreateIndexNullIndex() throws Exception {
     // TODO: NPE should not be thrown.
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     try {
       client.createIndex(null, indexTable);
       Assert.fail("TTransportException or NullPointerException should have happened");
@@ -373,7 +347,7 @@ public class TestAddAlterDropIndexes {
   @Test(expected = InvalidObjectException.class)
   public void testCreateIndexWithEmptyOrigTable() throws Exception {
 
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     Index index = buildIndexWithDefaultValues();
     index.setOrigTableName("");
     client.createIndex(index, indexTable);
@@ -385,7 +359,7 @@ public class TestAddAlterDropIndexes {
     createTable(DB_NAME, TABLE_NAME);
     Index index = buildIndexWithDefaultValues();
     index.setDbName("");
-    client.createIndex(index, buildTable(DB_NAME, INDEX_TABLE_NAME));
+    client.createIndex(index, buildIndexTable(DB_NAME, INDEX_TABLE_NAME));
   }
 
   @Test(expected = MetaException.class)
@@ -394,14 +368,14 @@ public class TestAddAlterDropIndexes {
     createTable(DB_NAME, TABLE_NAME);
     Index index = buildIndexWithDefaultValues();
     index.setIndexTableName(null);
-    client.createIndex(index, buildTable(DB_NAME, INDEX_TABLE_NAME));
+    client.createIndex(index, buildIndexTable(DB_NAME, INDEX_TABLE_NAME));
   }
 
   @Test
   public void testCreateIndexEmptyIndexName() throws Exception {
 
     Table origTable = createTable(DB_NAME, TABLE_NAME);
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     createIndex(DB_NAME, origTable, "", indexTable);
     checkIfIndexExists(DB_NAME, TABLE_NAME, "");
     client.dropIndex(DB_NAME, TABLE_NAME, "", true);
@@ -413,7 +387,7 @@ public class TestAddAlterDropIndexes {
     createTable(DB_NAME, TABLE_NAME);
     Index index = buildIndexWithDefaultValues();
     index.setIndexTableName("differentindextablename");
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     client.createIndex(index, indexTable);
     checkIfIndexListEmpty(DB_NAME, TABLE_NAME);
     List<String> tableNames = client.listTableNamesByFilter(DB_NAME, "", MAX);
@@ -430,7 +404,7 @@ public class TestAddAlterDropIndexes {
     String dbName = "second_index_db";
     createDB(dbName);
     Index index = buildIndexWithDefaultValues();
-    Table indexTable = buildTable(dbName, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(dbName, INDEX_TABLE_NAME);
     Assert.assertFalse(metaStore.isPathExists(new Path(indexTable.getSd().getLocation())));
     client.createIndex(index, indexTable);
     checkIfIndexListEmpty(DB_NAME, TABLE_NAME);
@@ -447,7 +421,7 @@ public class TestAddAlterDropIndexes {
   public void testCreateIndexDifferentColsInIndexAndIndexTable() throws Exception {
 
     createTable(DB_NAME, TABLE_NAME);
-    Table indexTable = buildTable(DB_NAME, INDEX_TABLE_NAME);
+    Table indexTable = buildIndexTable(DB_NAME, INDEX_TABLE_NAME);
     Index index = new IndexBuilder()
         .setDbName(DB_NAME)
         .setTableName(TABLE_NAME)
@@ -483,7 +457,7 @@ public class TestAddAlterDropIndexes {
     createTable(DB_NAME, TABLE_NAME);
     Index index = buildIndexWithDefaultValues();
     index.setSd(null);
-    client.createIndex(index, buildTable(DB_NAME, INDEX_TABLE_NAME));
+    client.createIndex(index, buildIndexTable(DB_NAME, INDEX_TABLE_NAME));
     checkIfIndexListEmpty(DB_NAME, TABLE_NAME);
   }
 
@@ -589,7 +563,7 @@ public class TestAddAlterDropIndexes {
         .setOutputFormat(oldOutputFormat)
         .addStorageDescriptorParam(oldIndexSdParamKey, oldIndexSdParamValue)
         .build();
-    client.createIndex(index, buildTable(DB_NAME, indexTableName));
+    client.createIndex(index, buildIndexTable(DB_NAME, indexTableName));
     Index oldIndex = client.getIndex(DB_NAME, TABLE_NAME, INDEX_NAME);
 
     int newCreateTime = (int) (System.currentTimeMillis() / 1000);
@@ -767,13 +741,17 @@ public class TestAddAlterDropIndexes {
   // Helper methods
 
   private Table createTable(String dbName, String tableName) throws Exception {
-    Table table = buildTable(dbName, tableName);
+    Table table = buildTable(dbName, tableName, null);
     client.createTable(table);
     return table;
   }
 
-  private Table buildTable(String dbName, String tableName) throws Exception {
-    Table table = new TableBuilder()
+  private Table buildIndexTable(String dbName, String tableName) throws Exception {
+    return buildTable(dbName, tableName, TableType.INDEX_TABLE);
+  }
+
+  private Table buildTable(String dbName, String tableName, TableType tableType) throws Exception {
+    TableBuilder tableBuilder = new TableBuilder()
         .setDbName(dbName)
         .setTableName(tableName)
         .addCol("id", "int", "test col id")
@@ -782,15 +760,20 @@ public class TestAddAlterDropIndexes {
         .setSerdeName(tableName)
         .setStoredAsSubDirectories(false)
         .addSerdeParam("testSerdeParamKey", "testSerdeParamValue")
-        .setLocation(metaStore.getWarehouseRoot() + "/" + tableName)
-        .build();
-    return table;
+        .setLocation(metaStore.getWarehouseRoot() + "/" + tableName);
+
+    if (tableType != null) {
+      tableBuilder.setType(tableType.name());
+    }
+
+    return tableBuilder.build();
   }
 
   private void createIndex(String indexName, String origTableName) throws Exception {
     Table origTable = createTable(DB_NAME, origTableName);
     String indexTableName = origTableName + "__" + indexName + "__";
-    createIndex(DB_NAME, origTable, indexName, buildTable(DB_NAME, indexTableName));
+    createIndex(DB_NAME, origTable, indexName, buildTable(DB_NAME, indexTableName,
+         TableType.INDEX_TABLE));
   }
 
   private void createIndex(String dbName, Table origTable, String indexName, Table indexTable)

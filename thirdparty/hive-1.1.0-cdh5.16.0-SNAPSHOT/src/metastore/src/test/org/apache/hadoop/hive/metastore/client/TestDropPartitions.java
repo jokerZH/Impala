@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -39,9 +38,9 @@ import org.apache.hadoop.hive.metastore.client.builder.PartitionBuilder;
 import org.apache.hadoop.hive.metastore.client.builder.TableBuilder;
 import org.apache.hadoop.hive.metastore.minihms.AbstractMetaStoreService;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -52,12 +51,7 @@ import com.google.common.collect.Lists;
  * Tests for dropping partitions.
  */
 @RunWith(Parameterized.class)
-public class TestDropPartitions {
-
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should remove our own copy
-  private static Set<AbstractMetaStoreService> metaStoreServices = null;
+public class TestDropPartitions extends MetaStoreClientTest {
   private AbstractMetaStoreService metaStore;
   private IMetaStoreClient client;
 
@@ -69,35 +63,19 @@ public class TestDropPartitions {
   private static final short MAX = -1;
   private static final Partition[] PARTITIONS = new Partition[3];
 
-  @Parameterized.Parameters(name = "{0}")
-  public static List<Object[]> getMetaStoreToTest() throws Exception {
-    metaStoreServices = new HashSet<AbstractMetaStoreService>();
-    List<Object[]> result = MetaStoreFactoryForTests.getMetaStores();
-    for(Object[] test: result) {
-      metaStoreServices.add((AbstractMetaStoreService)test[1]);
-    }
-    return result;
-  }
-
-  public TestDropPartitions(String name, AbstractMetaStoreService metaStore) throws Exception {
-    this.metaStore = metaStore;
+  @BeforeClass
+  public static void startMetaStores() {
     Map<HiveConf.ConfVars, String> msConf = new HashMap<HiveConf.ConfVars, String>();
     // Enable trash, so it can be tested
     Map<String, String> extraConf = new HashMap<String, String>();
     extraConf.put("fs.trash.checkpoint.interval", "30");  // FS_TRASH_CHECKPOINT_INTERVAL_KEY
     extraConf.put("fs.trash.interval", "30");             // FS_TRASH_INTERVAL_KEY (hadoop-2)
 
-    this.metaStore.start(msConf, extraConf);
+    startMetaStores(msConf, extraConf);
   }
 
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should move this to @AfterParam
-  @AfterClass
-  public static void stopMetaStores() throws Exception {
-    for(AbstractMetaStoreService metaStoreService : metaStoreServices) {
-      metaStoreService.stop();
-    }
+  public TestDropPartitions(String name, AbstractMetaStoreService metaStore) {
+    this.metaStore = metaStore;
   }
 
   @Before
@@ -285,18 +263,13 @@ public class TestDropPartitions {
     client.dropPartition(DB_NAME, TABLE_NAME, Lists.newArrayList("2017", "may"), false);
   }
 
-  @Test
+  @Test(expected = MetaException.class)
   public void testDropPartitionNullVal() throws Exception {
 
     List<String> partVals = new ArrayList<>();
     partVals.add(null);
     partVals.add(null);
-    try {
-      client.dropPartition(DB_NAME, TABLE_NAME, partVals, false);
-      Assert.fail("NullPointerException or NoSuchObjectException is expected to be thrown");
-    } catch (NullPointerException | NoSuchObjectException e) {
-      // TODO: Should not throw NPE.
-    }
+    client.dropPartition(DB_NAME, TABLE_NAME, partVals, false);
   }
 
   @Test(expected = NoSuchObjectException.class)
@@ -421,10 +394,13 @@ public class TestDropPartitions {
     checkPartitionsAfterDelete(tableName, droppedPartitions, remainingPartitions, true, true);
   }
 
-  @Test(expected = NullPointerException.class)
+  @Test
   public void testDropPartitionNullPartDropOptions() throws Exception {
-    // TODO: This should not throw NPE
+
     client.dropPartition(DB_NAME, TABLE_NAME, PARTITIONS[0].getValues(), null);
+    List<Partition> droppedPartitions = Lists.newArrayList(PARTITIONS[0]);
+    List<Partition> remainingPartitions = Lists.newArrayList(PARTITIONS[1], PARTITIONS[2]);
+    checkPartitionsAfterDelete(TABLE_NAME, droppedPartitions, remainingPartitions, true, false);
   }
 
   // Tests for dropPartition(String db_name, String tbl_name, String name,

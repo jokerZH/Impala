@@ -322,6 +322,7 @@ Shell.load_command_group(
     normalize
     normalizer_switch
     normalizer_enabled
+    is_in_maintenance_mode
     close_region
     compact
     flush
@@ -339,6 +340,8 @@ Shell.load_command_group(
     trace
     compact_mob
     major_compact_mob
+    splitormerge_switch
+    splitormerge_enabled
   ],
   # TODO remove older hlog_roll command
   :aliases => {

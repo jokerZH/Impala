@@ -19,14 +19,11 @@
 package org.apache.hadoop.hive.metastore.client;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Database;
-import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -38,13 +35,11 @@ import org.apache.hadoop.hive.metastore.client.builder.TableBuilder;
 import org.apache.hadoop.hive.metastore.minihms.AbstractMetaStoreService;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.thrift.TException;
-import org.apache.thrift.protocol.TProtocolException;
 import org.apache.thrift.transport.TTransportException;
 
 import com.google.common.collect.Lists;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -61,41 +56,15 @@ import static org.junit.Assert.fail;
  * API tests for HMS client's listPartitions methods.
  */
 @RunWith(Parameterized.class)
-public class TestListPartitions {
-
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should remove our own copy
-  private static Set<AbstractMetaStoreService> metaStoreServices = null;
+public class TestListPartitions extends MetaStoreClientTest {
   private AbstractMetaStoreService metaStore;
   private IMetaStoreClient client;
 
   private static final String DB_NAME = "testpartdb";
   private static final String TABLE_NAME = "testparttable";
 
-  @Parameterized.Parameters(name = "{0}")
-  public static List<Object[]> getMetaStoreToTest() throws Exception {
-    metaStoreServices = new HashSet<AbstractMetaStoreService>();
-    List<Object[]> result = MetaStoreFactoryForTests.getMetaStores();
-    for(Object[] test: result) {
-      metaStoreServices.add((AbstractMetaStoreService)test[1]);
-    }
-    return result;
-  }
-
-  public TestListPartitions(String name, AbstractMetaStoreService metaStore) throws Exception {
+  public TestListPartitions(String name, AbstractMetaStoreService metaStore) {
     this.metaStore = metaStore;
-    this.metaStore.start();
-  }
-
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should move this to @AfterParam
-  @AfterClass
-  public static void stopMetaStores() throws Exception {
-    for(AbstractMetaStoreService metaStoreService : metaStoreServices) {
-      metaStoreService.stop();
-    }
   }
 
   @Before
@@ -290,14 +259,14 @@ public class TestListPartitions {
 
   @Test
   public void testListPartitionsAllNoParts() throws Exception {
-    Table t = createTestTable(client, DB_NAME, TABLE_NAME, Lists.newArrayList("yyyy", "mm", "dd"));
+    createTestTable(client, DB_NAME, TABLE_NAME, Lists.newArrayList("yyyy", "mm", "dd"));
     List<Partition> partitions = client.listPartitions(DB_NAME, TABLE_NAME, (short)-1);
     assertTrue(partitions.isEmpty());
   }
 
   @Test(expected = NoSuchObjectException.class)
   public void testListPartitionsAllNoTable() throws Exception {
-    List<Partition> partitions = client.listPartitions(DB_NAME, TABLE_NAME, (short)-1);
+    client.listPartitions(DB_NAME, TABLE_NAME, (short)-1);
   }
 
   @Test(expected = NoSuchObjectException.class)
@@ -318,21 +287,10 @@ public class TestListPartitions {
     client.listPartitions(DB_NAME, "", (short)-1);
   }
 
-  @Test
+  @Test(expected = MetaException.class)
   public void testListPartitionsAllNullTblName() throws Exception {
-    try {
-      createTable3PartCols1Part(client);
-      List<Partition> partitions = client.listPartitions(DB_NAME, null, (short)-1);
-      fail("Should have thrown exception");
-    } catch (NullPointerException | TTransportException e) {
-      //TODO: should not throw different exceptions for different HMS deployment types
-    }
-    // HIVE-12064 adds a new listener to hive.metastore.pre.event.listeners, which throws a
-    // NullPointerException. If there is no listener, then the assertion fails in
-    // the objectstore
-    catch (AssertionError e) {
-      //TODO: should not throw different exceptions for different HMS deployment types
-    }
+    createTable3PartCols1Part(client);
+    client.listPartitions(DB_NAME, null, (short)-1);
   }
 
   @Test
@@ -582,15 +540,10 @@ public class TestListPartitions {
     client.listPartitionsWithAuthInfo(null, TABLE_NAME, (short)-1, "", (List)Lists.newArrayList());
   }
 
-  @Test
+  @Test(expected = MetaException.class)
   public void testListPartitionsWithAuthNullTblName() throws Exception {
-    try {
-      createTable4PartColsParts(client);
-      client.listPartitionsWithAuthInfo(DB_NAME, null, (short)-1, "", (List)Lists.newArrayList());
-      fail("Should have thrown exception");
-    } catch (AssertionError| TTransportException e) {
-      //TODO: should not throw different exceptions for different HMS deployment types
-    }
+    createTable4PartColsParts(client);
+    client.listPartitionsWithAuthInfo(DB_NAME, null, (short)-1, "", (List)Lists.newArrayList());
   }
 
   @Test
@@ -804,12 +757,84 @@ public class TestListPartitions {
     assertTrue(partitions.isEmpty());
 
     partitions = client.listPartitionsByFilter(DB_NAME, TABLE_NAME,
-            "yYyY=\"2017\"", (short)-1);
-    assertPartitionsHaveCorrectValues(partitions, partValues.subList(2, 4));
-
-    partitions = client.listPartitionsByFilter(DB_NAME, TABLE_NAME,
             "yyyy=\"2017\" AND mm=\"99\"", (short)-1);
     assertTrue(partitions.isEmpty());
+  }
+
+  @Test
+  public void testListPartitionsByFilterCaseInsensitive() throws Exception {
+    String tableName = TABLE_NAME + "_caseinsensitive";
+    Table t = createTestTable(client, DB_NAME, tableName,
+        Lists.newArrayList("yyyy", "month", "day"), false);
+    List<List<String>> testValues = (List)Lists.newArrayList(
+        Lists.newArrayList("2017", "march", "11"),
+        Lists.newArrayList("2017", "march", "15"),
+        Lists.newArrayList("2017", "may", "15"),
+        Lists.newArrayList("2018", "march", "11"),
+        Lists.newArrayList("2018", "september", "7"));
+
+    for(List<String> vals : testValues) {
+      addPartition(client, t, vals);
+    }
+
+    List<Partition> partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "yYyY=\"2017\"", (short) -1);
+    assertPartitionsHaveCorrectValues(partitions, testValues.subList(0, 3));
+
+    partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "yYyY=\"2017\" AND mOnTh=\"may\"", (short) -1);
+    assertPartitionsHaveCorrectValues(partitions, testValues.subList(2, 3));
+
+    partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "yYyY!=\"2017\"", (short) -1);
+    assertPartitionsHaveCorrectValues(partitions, testValues.subList(3, 5));
+
+    partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "mOnTh=\"september\"", (short) -1);
+    assertPartitionsHaveCorrectValues(partitions, testValues.subList(4, 5));
+
+    partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "mOnTh like \"m.*\"", (short) -1);
+    assertPartitionsHaveCorrectValues(partitions, testValues.subList(0, 4));
+
+    partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "yYyY=\"2018\" AND mOnTh like \"m.*\"", (short) -1);
+    assertPartitionsHaveCorrectValues(partitions, testValues.subList(3, 4));
+    client.dropTable(DB_NAME, tableName);
+  }
+
+  @Test
+  public void testListPartitionsByFilterCaseSensitive() throws Exception {
+    String tableName = TABLE_NAME + "_casesensitive";
+    Table t = createTestTable(client, DB_NAME, tableName,
+        Lists.newArrayList("yyyy", "month", "day"), false);
+    List<List<String>> testValues = (List)Lists.newArrayList(
+        Lists.newArrayList("2017", "march", "11"),
+        Lists.newArrayList("2017", "march", "15"),
+        Lists.newArrayList("2017", "may", "15"),
+        Lists.newArrayList("2018", "march", "11"),
+        Lists.newArrayList("2018", "april", "7"));
+
+    for(List<String> vals : testValues) {
+      addPartition(client, t, vals);
+    }
+
+    List<Partition> partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "month=\"mArCh\"", (short) -1);
+    assertTrue(partitions.isEmpty());
+
+    partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "yyyy=\"2017\" AND month=\"May\"", (short) -1);
+    assertTrue(partitions.isEmpty());
+
+    partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "yyyy=\"2017\" AND month!=\"mArCh\"", (short) -1);
+    assertPartitionsHaveCorrectValues(partitions, testValues.subList(0, 3));
+
+    partitions = client.listPartitionsByFilter(DB_NAME, tableName,
+        "month like \"M.*\"", (short) -1);
+    assertTrue(partitions.isEmpty());
+    client.dropTable(DB_NAME, tableName);
   }
 
   @Test(expected = MetaException.class)
@@ -847,21 +872,10 @@ public class TestListPartitions {
     client.listPartitionsByFilter(DB_NAME, TABLE_NAME, "yyyy=\"2017\"", (short)-1);
   }
 
-  @Test
+  @Test(expected = MetaException.class)
   public void testListPartitionsByFilterNullTblName() throws Exception {
-    try {
-      createTable4PartColsParts(client);
-      client.listPartitionsByFilter(DB_NAME, null, "yyyy=\"2017\"", (short)-1);
-      fail("Should have thrown exception");
-    } catch (NullPointerException | TTransportException e) {
-      //TODO: should not throw different exceptions for different HMS deployment types
-    }
-    // HIVE-12064 adds a new listener to hive.metastore.pre.event.listeners, which throws a
-    // NullPointerException. If there is no listener, then the assertion fails in
-    // the objectstore.
-    catch (AssertionError e) {
-      //TODO: should not throw different exceptions for different HMS deployment types
-    }
+    createTable4PartColsParts(client);
+    client.listPartitionsByFilter(DB_NAME, null, "yyyy=\"2017\"", (short)-1);
   }
 
   @Test
@@ -1050,15 +1064,10 @@ public class TestListPartitions {
     client.getNumPartitionsByFilter(DB_NAME, TABLE_NAME, "yyyy=\"2017\"");
   }
 
-  @Test
+  @Test(expected = MetaException.class)
   public void testGetNumPartitionsByFilterNullTblName() throws Exception {
-    try {
-      createTable4PartColsParts(client);
-      client.getNumPartitionsByFilter(DB_NAME, null, "yyyy=\"2017\"");
-      fail("Should have thrown exception");
-    } catch (AssertionError | TTransportException e) {
-      //TODO: should not throw different exceptions for different HMS deployment types
-    }
+    createTable4PartColsParts(client);
+    client.getNumPartitionsByFilter(DB_NAME, null, "yyyy=\"2017\"");
   }
 
   @Test(expected = MetaException.class)

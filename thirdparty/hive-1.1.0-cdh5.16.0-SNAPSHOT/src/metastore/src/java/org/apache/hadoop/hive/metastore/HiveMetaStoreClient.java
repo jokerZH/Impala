@@ -592,6 +592,9 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
   public int add_partitions(List<Partition> new_parts)
       throws InvalidObjectException, AlreadyExistsException, MetaException,
       TException {
+    if (new_parts == null || new_parts.contains(null)) {
+      throw new MetaException("Partitions cannot be null.");
+    }
     return client.add_partitions(new_parts);
   }
 
@@ -599,6 +602,9 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
   public List<Partition> add_partitions(
       List<Partition> parts, boolean ifNotExists, boolean needResults)
       throws InvalidObjectException, AlreadyExistsException, MetaException, TException {
+    if (parts == null || parts.contains(null)) {
+      throw new MetaException("Partitions cannot be null.");
+    }
     if (parts.isEmpty()) {
       return needResults ? new ArrayList<Partition>() : null;
     }
@@ -612,6 +618,9 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
 
   @Override
   public int add_partitions_pspec(PartitionSpecProxy partitionSpec) throws TException {
+    if (partitionSpec == null) {
+      throw new MetaException("PartitionSpec cannot be null.");
+    }
     return client.add_partitions_pspec(partitionSpec.toPartitionSpec());
   }
 
@@ -865,6 +874,9 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
   @Override
   public boolean dropPartition(String db_name, String tbl_name,
       List<String> part_vals, PartitionDropOptions options) throws TException {
+    if (options == null) {
+      options = PartitionDropOptions.instance();
+    }
     return dropPartition(db_name, tbl_name, part_vals, options.deleteData,
                          options.purgeData? getEnvironmentContextWithIfPurgeSet() : null);
   }
@@ -872,6 +884,13 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
   public boolean dropPartition(String db_name, String tbl_name, List<String> part_vals,
       boolean deleteData, EnvironmentContext envContext) throws NoSuchObjectException,
       MetaException, TException {
+    if (part_vals != null) {
+      for (String partVal : part_vals) {
+        if (partVal == null) {
+          throw new MetaException("The partition value must not be null.");
+        }
+      }
+    }
     return client.drop_partition_with_environment_context(db_name, tbl_name, part_vals, deleteData,
         envContext);
   }
@@ -2154,6 +2173,9 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
   @Override
   public void createFunction(Function func) throws InvalidObjectException,
       MetaException, TException {
+    if (func == null) {
+      throw new MetaException("Function cannot be null.");
+    }
     client.create_function(func);
   }
 

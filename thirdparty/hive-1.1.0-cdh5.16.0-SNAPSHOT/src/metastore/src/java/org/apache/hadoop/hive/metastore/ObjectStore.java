@@ -165,7 +165,7 @@ import org.apache.thrift.TException;
 import org.datanucleus.store.rdbms.exceptions.MissingTableException;
 
 import com.google.common.collect.Lists;
-
+import com.google.common.base.Strings;
 
 /**
  * This class is the interface between the application logic and the database
@@ -320,7 +320,7 @@ public class ObjectStore implements RawStore, Configurable {
         throw new RuntimeException(
         "Unable to create persistence manager. Check dss.log for details");
       } else {
-        LOG.info("Initialized ObjectStore");
+        LOG.debug("Initialized ObjectStore");
       }
     } finally {
       pmfPropLock.unlock();
@@ -337,7 +337,7 @@ public class ObjectStore implements RawStore, Configurable {
 
   @SuppressWarnings("nls")
   private void initialize(Properties dsProps) {
-    LOG.info("ObjectStore, initialize called");
+    LOG.debug("ObjectStore, initialize called");
     prop = dsProps;
     pm = getPersistenceManager();
     isInitialized = pm != null;
@@ -452,6 +452,10 @@ public class ObjectStore implements RawStore, Configurable {
     if (pm != null) {
       LOG.debug("RawStore: " + this + ", with PersistenceManager: " + pm +
           " will be shutdown");
+      if (pm.currentTransaction().isActive()) {
+        LOG.debug("RawStore: Rolling back active transaction");
+        pm.currentTransaction().rollback();
+      }
       pm.close();
     }
   }
@@ -1289,11 +1293,21 @@ public class ObjectStore implements RawStore, Configurable {
         tableType = TableType.MANAGED_TABLE.toString();
       }
     }
-    return new Table(mtbl.getTableName(), mtbl.getDatabase().getName(), mtbl
+    Table t = new Table(mtbl.getTableName(), mtbl.getDatabase().getName(), mtbl
         .getOwner(), mtbl.getCreateTime(), mtbl.getLastAccessTime(), mtbl
         .getRetention(), convertToStorageDescriptor(mtbl.getSd()),
         convertToFieldSchemas(mtbl.getPartitionKeys()), convertMap(mtbl.getParameters()),
         mtbl.getViewOriginalText(), mtbl.getViewExpandedText(), tableType);
+
+    if (Strings.isNullOrEmpty(mtbl.getOwnerType())) {
+      // Before the ownerType exists in an old Hive schema, USER was the default type for owner.
+      // Let's set the default to USER to keep backward compatibility.
+      t.setOwnerType(PrincipalType.USER);
+    } else {
+      t.setOwnerType(PrincipalType.valueOf(mtbl.getOwnerType()));
+    }
+
+    return t;
   }
 
   private MTable convertToMTable(Table tbl) throws InvalidObjectException,
@@ -1325,9 +1339,12 @@ public class ObjectStore implements RawStore, Configurable {
       }
     }
 
+    PrincipalType ownerPrincipalType = tbl.getOwnerType();
+    String ownerType = (ownerPrincipalType == null) ? PrincipalType.USER.name() : ownerPrincipalType.name();
+
     // A new table is always created with a new column descriptor
     return new MTable(HiveStringUtils.normalizeIdentifier(tbl.getTableName()), mdb,
-        convertToMStorageDescriptor(tbl.getSd()), tbl.getOwner(), tbl
+        convertToMStorageDescriptor(tbl.getSd()), tbl.getOwner(), ownerType, tbl
             .getCreateTime(), tbl.getLastAccessTime(), tbl.getRetention(),
         convertToMFieldSchemas(tbl.getPartitionKeys()), tbl.getParameters(),
         tbl.getViewOriginalText(), tbl.getViewExpandedText(),
@@ -2237,7 +2254,7 @@ public class ObjectStore implements RawStore, Configurable {
       Query query = queryWrapper.query = pm.newQuery(MPartition.class, "table.tableName == t1 && table.database.name == t2");
       query.declareParameters("java.lang.String t1, java.lang.String t2");
       query.setOrdering("partitionName ascending");
-      if (max > 0) {
+      if (max >= 0) {
         query.setRange(0, max);
       }
       mparts = (List<MPartition>) query.execute(tableName, dbName);
@@ -3138,6 +3155,7 @@ public class ObjectStore implements RawStore, Configurable {
       oldt.setTableName(HiveStringUtils.normalizeIdentifier(newt.getTableName()));
       oldt.setParameters(newt.getParameters());
       oldt.setOwner(newt.getOwner());
+      oldt.setOwnerType(newt.getOwnerType());
       // Fully copy over the contents of the new SD into the old SD,
       // so we don't create an extra SD in the metastore db that has no references.
       MColumnDescriptor oldCD = null;

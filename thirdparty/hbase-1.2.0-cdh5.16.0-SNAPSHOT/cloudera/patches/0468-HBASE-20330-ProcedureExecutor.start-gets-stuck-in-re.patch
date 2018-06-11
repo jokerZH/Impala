@@ -1,0 +1,149 @@
+From 505dec52177adb74c05f44d28739a5614deaf0d4 Mon Sep 17 00:00:00 2001
+From: Umesh Agashe <uagashe@cloudera.com>
+Date: Wed, 4 Apr 2018 16:07:50 -0700
+Subject: [PATCH 468/470] HBASE-20330 ProcedureExecutor.start() gets stuck in
+ recover lease on store
+
+rollWriter() fails after creating the file and returns false. In next iteration of while loop in recoverLease() file list is refreshed.
+
+(cherry picked from commit e4b51bb27d87310fd3f6a75c61a1ecda57b069bc)
+
+Author: Umesh Agashe
+Reason: Bug
+Ref: CDH-66763
+
+Change-Id: Ic14c4776f5b41add5653e832956043f4d4f2f6d9
+Signed-off-by: Appy <appy@cloudera.com>
+---
+ hbase-procedure/pom.xml                            |    6 ++++
+ .../procedure2/store/wal/WALProcedureStore.java    |   16 +++++----
+ .../store/wal/TestWALProcedureStore.java           |   37 ++++++++++++++++++++
+ 3 files changed, 53 insertions(+), 6 deletions(-)
+
+diff --git a/hbase-procedure/pom.xml b/hbase-procedure/pom.xml
+index 21b4da8..23ab058 100644
+--- a/hbase-procedure/pom.xml
++++ b/hbase-procedure/pom.xml
+@@ -102,6 +102,12 @@
+       <groupId>commons-logging</groupId>
+       <artifactId>commons-logging</artifactId>
+     </dependency>
++    <dependency>
++      <groupId>org.mockito</groupId>
++      <artifactId>mockito-core</artifactId>
++      <version>2.1.0</version>
++      <scope>test</scope>
++    </dependency>
+   </dependencies>
+ 
+   <profiles>
+diff --git a/hbase-procedure/src/main/java/org/apache/hadoop/hbase/procedure2/store/wal/WALProcedureStore.java b/hbase-procedure/src/main/java/org/apache/hadoop/hbase/procedure2/store/wal/WALProcedureStore.java
+index ece08d6..8ef2c49 100644
+--- a/hbase-procedure/src/main/java/org/apache/hadoop/hbase/procedure2/store/wal/WALProcedureStore.java
++++ b/hbase-procedure/src/main/java/org/apache/hadoop/hbase/procedure2/store/wal/WALProcedureStore.java
+@@ -294,22 +294,21 @@ public class WALProcedureStore extends ProcedureStoreBase {
+   public void recoverLease() throws IOException {
+     lock.lock();
+     try {
+-      LOG.info("Starting WAL Procedure Store lease recovery");
+-      FileStatus[] oldLogs = getLogFiles();
++      LOG.trace("Starting WAL Procedure Store lease recovery");
+       while (isRunning()) {
++        FileStatus[] oldLogs = getLogFiles();
+         // Get Log-MaxID and recover lease on old logs
+         try {
+           flushLogId = initOldLogs(oldLogs);
+         } catch (FileNotFoundException e) {
+-          LOG.warn("someone else is active and deleted logs. retrying.", e);
+-          oldLogs = getLogFiles();
++          LOG.warn("Someone else is active and deleted logs. retrying.", e);
+           continue;
+         }
+ 
+         // Create new state-log
+         if (!rollWriter(flushLogId + 1)) {
+           // someone else has already created this log
+-          LOG.debug("someone else has already created log " + flushLogId);
++          LOG.warn("someone else has already created log " + flushLogId + ". retrying");
+           continue;
+         }
+ 
+@@ -793,7 +792,8 @@ public class WALProcedureStore extends ProcedureStoreBase {
+     return true;
+   }
+ 
+-  private boolean rollWriter(final long logId) throws IOException {
++  @VisibleForTesting
++  boolean rollWriter(final long logId) throws IOException {
+     assert logId > flushLogId : "logId=" + logId + " flushLogId=" + flushLogId;
+     assert lock.isHeldByCurrentThread() : "expected to be the lock owner. " + lock.isLocked();
+ 
+@@ -843,6 +843,10 @@ public class WALProcedureStore extends ProcedureStoreBase {
+   }
+ 
+   private void closeStream() {
++    if (stream == null || logs.isEmpty()) {
++      return;
++    }
++
+     try {
+       if (stream != null) {
+         try {
+diff --git a/hbase-procedure/src/test/java/org/apache/hadoop/hbase/procedure2/store/wal/TestWALProcedureStore.java b/hbase-procedure/src/test/java/org/apache/hadoop/hbase/procedure2/store/wal/TestWALProcedureStore.java
+index e3f6bf2..59e7697 100644
+--- a/hbase-procedure/src/test/java/org/apache/hadoop/hbase/procedure2/store/wal/TestWALProcedureStore.java
++++ b/hbase-procedure/src/test/java/org/apache/hadoop/hbase/procedure2/store/wal/TestWALProcedureStore.java
+@@ -50,6 +50,9 @@ import org.junit.Before;
+ import org.junit.Assert;
+ import org.junit.Test;
+ import org.junit.experimental.categories.Category;
++import org.mockito.Mockito;
++import org.mockito.invocation.InvocationOnMock;
++import org.mockito.stubbing.Answer;
+ 
+ import static org.junit.Assert.assertEquals;
+ import static org.junit.Assert.assertFalse;
+@@ -485,6 +488,40 @@ public class TestWALProcedureStore {
+     assertEquals(0, loader.getCorruptedCount());
+   }
+ 
++  @Test
++  public void testLogFileAleadExists() throws IOException {
++    final boolean[] tested = {false};
++    final WALProcedureStore mStore = Mockito.spy(procStore);
++
++    Answer<Boolean> ans = new Answer<Boolean>() {
++      @Override
++      public Boolean answer(InvocationOnMock invocationOnMock) throws Throwable {
++        long logId = ((Long) invocationOnMock.getArgument(0)).longValue();
++        switch ((int) logId) {
++          case 2:
++            // Create a file so that real rollWriter() runs into file exists condition
++            Path logFilePath = mStore.getLogFilePath(logId);
++            mStore.getFileSystem().create(logFilePath);
++            break;
++          case 3:
++            // Success only when we retry with logId 3
++            tested[0] = true;
++          default:
++            break;
++        }
++        return (Boolean) invocationOnMock.callRealMethod();
++      }
++    };
++
++    // First time Store has one log file, next id will be 2
++    Mockito.doAnswer(ans).when(mStore).rollWriter(2);
++    // next time its 3
++    Mockito.doAnswer(ans).when(mStore).rollWriter(3);
++
++    mStore.recoverLease();
++    assertTrue(tested[0]);
++  }
++
+   private void corruptLog(final FileStatus logFile, final long dropBytes)
+       throws IOException {
+     assertTrue(logFile.getLen() > dropBytes);
+-- 
+1.7.9.5
+

@@ -1,3 +1,207 @@
+commit e84c15d7dbe5b9938b167610697e0e57cb7b20ce
+Author: Josh Elser <elserj@apache.org>
+Date:   Thu May 31 13:02:53 2018 -0400
+
+    HBASE-20664 Reduce the broad scope of outToken in ThriftHttpServlet
+    
+    Signed-off-by: Andrew Purtell <apurtell@apache.org>
+    (cherry picked from commit f7e50346322c6ba0ee46e64c07677e9ea052718e)
+    
+    Change-Id: I8f87bef5378deebc1e4c8fc683c745356f3900f6
+    Reason: Bug
+    Author: Josh Elser
+    Ref: CDH-69267
+
+commit c4382b64789ba6b03f7a7a9781a2332954463ce5
+Author: Wei-Chiu Chuang <weichiu@cloudera.com>
+Date:   Thu Apr 5 14:11:29 2018 -0700
+
+    HBASE-20338 WALProcedureStore#recoverLease() should have fixed sleeps for retrying rollWriter()
+    
+    (cherry picked from commit 17a29ac2313774850f0cce116ee33ef79d007a34)
+    
+    Author: Umesh Agashe
+    Reason: Bug
+    Ref: CDH-66763
+    
+    Signed-off-by: Mike Drob <mdrob@apache.org>
+    Signed-off-by: Umesh Agashe <uagashe@cloudera.com>
+    Signed-off-by: Chia-Ping Tsai <chia7712@gmail.com>
+    Change-Id: Ic5a1b76c487181b42b337b5c010ba40b798b9b2c
+
+commit 505dec52177adb74c05f44d28739a5614deaf0d4
+Author: Umesh Agashe <uagashe@cloudera.com>
+Date:   Wed Apr 4 16:07:50 2018 -0700
+
+    HBASE-20330 ProcedureExecutor.start() gets stuck in recover lease on store
+    
+    rollWriter() fails after creating the file and returns false. In next iteration of while loop in recoverLease() file list is refreshed.
+    
+    (cherry picked from commit e4b51bb27d87310fd3f6a75c61a1ecda57b069bc)
+    
+    Author: Umesh Agashe
+    Reason: Bug
+    Ref: CDH-66763
+    
+    Change-Id: Ic14c4776f5b41add5653e832956043f4d4f2f6d9
+    Signed-off-by: Appy <appy@cloudera.com>
+
+commit f080ddd307dcaea85d247998b2aa13d68b648100
+Author: Colm O hEigeartaigh <coheigea@apache.org>
+Date:   Fri Apr 21 09:16:01 2017 +0100
+
+    HBASE-17944 - Removed unused JDK version parsing from ClassSize.
+    
+    Author: Colm O hEigeartaigh
+    Reason: Bug
+    Ref: CDH-67876
+    
+    Change-Id: I528c3196d7553af8c90bbb9f995e4f220f028e91
+    Signed-off-by: Sean Busbey <busbey@apache.org>
+
+commit 432b2938098369e51ab8fd949ed164c2429cfd91
+Author: Toshihiro Suzuki <brfrn169@gmail.com>
+Date:   Wed Apr 18 14:47:04 2018 +0900
+
+    HBASE-20293 get_splits returns duplicate split points when region replication is on
+    
+    Author: Toshihiro Suzuki
+    Reason: Bug
+    Ref: CDH-67816
+    
+    Change-Id: Icc0f60a4b29cc482de861adf5fc10754c66951fe
+    Signed-off-by: Ted Yu <yuzhihong@gmail.com>
+    Signed-off-by: Huaxiang Sun <hsun@apache.org>
+    Signed-off-by: Sean Busbey <busbey@apache.org>
+
+commit cc7d36f117ee380f5cad576d12a636f380efc4ff
+Author: Toshihiro Suzuki <brfrn169@gmail.com>
+Date:   Wed Apr 25 13:34:03 2018 -0700
+
+    HBASE-20229 ConnectionImplementation.locateRegions() returns duplicated entries when region replication is on
+    
+    Change-Id: I71612c7da73a51da749037240886c9f41b5af87c
+    Author: Toshihiro Suzuki
+    Reason: Bug
+    Ref: CDH-67776
+
+commit 45f8f5a18e9eb735909a6677a49f7e3d155c7687
+Author: zhangduo <zhangduo@apache.org>
+Date:   Sun Feb 5 09:12:50 2017 +0800
+
+    HBASE-17597 TestMetaWithReplicas.testMetaTableReplicaAssignment is flaky
+    
+    (cherry picked from commit b1690e17614c198498dd06f38bee1f0c4e53dae7)
+    
+    Change-Id: I232a00c24681268e7dacbd20f30b0c64dc21c2a7
+    Author: zhangduo
+    Reason: Bug
+    Ref: CDH-67644
+
+commit 23017dc94feda78e93dd48aac955efb49dc846e9
+Author: Yu Li <liyu@apache.org>
+Date:   Sat Jul 9 01:05:10 2016 +0800
+
+    HBASE-16201 fix a NPE issue in RpcServer
+    
+    (cherry picked from commit b99efe65e900299271b1e2a0c5feabd23930eb70)
+    
+    Change-Id: I79707378c9a894d7993ad4c86a23ff75d79de3d6
+    Reason: Bug
+    Ref: CDH-67494
+    Author: Yu Li
+
+commit 44c3b0ef1b7bb4ffaf5f47f61fc6d311f92ebd04
+Author: Vivek <vkoppuru@salesforce.com>
+Date:   Fri Aug 5 17:25:06 2016 -0700
+
+    HBASE-15866 Split hbase.rpc.timeout into *.read.timeout and *.write.timeout
+    
+    Signed-off-by: Andrew Purtell <apurtell@apache.org>
+    Amending-Author: Andrew Purtell <apurtell@apache.org>
+    
+    Reason: New Feature
+    Author: Vivek
+    Ref: CDH-65522
+    
+    Conflicts:
+    	hbase-client/src/main/java/org/apache/hadoop/hbase/client/AsyncProcess.java
+    	hbase-client/src/main/java/org/apache/hadoop/hbase/client/ConnectionImplementation.java
+    	hbase-client/src/main/java/org/apache/hadoop/hbase/client/HTable.java
+    	hbase-client/src/main/java/org/apache/hadoop/hbase/client/Table.java
+    	hbase-server/src/main/java/org/apache/hadoop/hbase/client/HTableWrapper.java
+    	hbase-server/src/test/java/org/apache/hadoop/hbase/client/HConnectionTestingUtility.java
+    	hbase-server/src/test/java/org/apache/hadoop/hbase/client/TestHCM.java
+    
+    Change-Id: Iab1d1410a67eb67200e9004d9696b5bba87012d2
+
+commit 0ae0333cb9e769b051a721bd2f6106604dc04e97
+Author: Chia-Ping Tsai <chia7712@gmail.com>
+Date:   Fri Dec 1 04:01:15 2017 +0800
+
+    HBASE-19350 TestMetaWithReplicas is flaky
+    
+    (cherry picked from commit 9ab637c2292e36313b22b41be1e86809c6ac60f6)
+    
+    Change-Id: I6dd837d4e535a663700d29cdcb2d8ca8b6a9ae1a
+    Author: Chia-Ping Tsai
+    Reason: Bug
+    Ref: CDH-66315
+
+commit ec8edfb8ff081450b815f5e94233a7525359839e
+Author: Chia-Ping Tsai <chia7712@gmail.com>
+Date:   Sun Feb 18 21:22:58 2018 +0800
+
+    HBASE-20016 TestCatalogJanitorInMemoryStates#testInMemoryForReplicaParentCleanup is flaky
+    
+    (cherry picked from commit 08b993997404aad7ec8f66b8c2b2083062c9ef1a)
+    (cherry picked from commit 41cd37cffc690d056edf1ca10d5cbc07d02373c5)
+    
+    Change-Id: Ia5b53e789a847cb0f0f5452a06e0a24f4cd3adfe
+    Author: Chia-Ping Tsai
+    Reason: Bug
+    Ref: CDH-65834
+
+commit 0c8ac8ff50a7802ecb14ac330c90067f2fedd110
+Author: Balazs Meszaros <balazs.meszaros@cloudera.com>
+Date:   Mon Jan 29 16:43:20 2018 +0100
+
+    HBASE-19886 Display maintenance mode in shell, web UI
+    
+    (cherry picked from commit 1eef181a577dfd120708a8f859cc21546ec8516b)
+    
+    Author: Balazs Meszaros
+    Reason: New Feature
+    Ref: CDH-62132
+    
+    Change-Id: Ic7873882ad9eff6fbf9dea047d90f9f7a2287d74
+
+commit faa6293156b8e492d9d3fe1b49d23202b3bab2f9
+Author: Stephen Yuan Jiang <syuanjiangdev@gmail.com>
+Date:   Sat Jul 23 20:21:32 2016 -0700
+
+    HBASE-16008 A robust way deal with early termination of HBCK (Stephen Yuan Jiang)
+    
+    (cherry picked from commit a8dd359d7e2c1f6c92eaed3fdcb6d7455aae4ef8)
+    
+    Change-Id: I1e302a2763313ee7fc6f9e66110656a4481804ec
+    Author: Stephen Yuan Jiang
+    Reason: Improvement
+    Ref: CDH-62132
+
+commit 1e2b13e61276be1ae1c6570f065d4d9176ffa67d
+Author: chenheng <chenheng@apache.org>
+Date:   Mon Feb 29 20:35:18 2016 +0800
+
+    HBASE-15128 Disable region splits and merges switch in master
+    
+    (cherry picked from commit 6463bbaa4110e7b73fa67811ef7ad710e90f9fbd)
+    
+    Change-Id: I9b4458329e284d2e45509b684ea0ab04e365aa48
+    Author: chenheng
+    Reason: Bug
+    Ref: CDH-62132
+
 commit a9368677e82997afb0630cbf87835a071204bb14
 Author: Jenkins <dev-kitchen@cloudera.com>
 Date:   Mon Mar 19 02:51:48 2018 -0700

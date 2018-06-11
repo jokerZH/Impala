@@ -1,0 +1,43 @@
+From c4382b64789ba6b03f7a7a9781a2332954463ce5 Mon Sep 17 00:00:00 2001
+From: Wei-Chiu Chuang <weichiu@cloudera.com>
+Date: Thu, 5 Apr 2018 14:11:29 -0700
+Subject: [PATCH 469/470] HBASE-20338 WALProcedureStore#recoverLease() should
+ have fixed sleeps for retrying rollWriter()
+
+(cherry picked from commit 17a29ac2313774850f0cce116ee33ef79d007a34)
+
+Author: Umesh Agashe
+Reason: Bug
+Ref: CDH-66763
+
+Signed-off-by: Mike Drob <mdrob@apache.org>
+Signed-off-by: Umesh Agashe <uagashe@cloudera.com>
+Signed-off-by: Chia-Ping Tsai <chia7712@gmail.com>
+Change-Id: Ic5a1b76c487181b42b337b5c010ba40b798b9b2c
+---
+ .../procedure2/store/wal/WALProcedureStore.java    |    8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/hbase-procedure/src/main/java/org/apache/hadoop/hbase/procedure2/store/wal/WALProcedureStore.java b/hbase-procedure/src/main/java/org/apache/hadoop/hbase/procedure2/store/wal/WALProcedureStore.java
+index 8ef2c49..fd9c02a 100644
+--- a/hbase-procedure/src/main/java/org/apache/hadoop/hbase/procedure2/store/wal/WALProcedureStore.java
++++ b/hbase-procedure/src/main/java/org/apache/hadoop/hbase/procedure2/store/wal/WALProcedureStore.java
+@@ -295,7 +295,15 @@ public class WALProcedureStore extends ProcedureStoreBase {
+     lock.lock();
+     try {
+       LOG.trace("Starting WAL Procedure Store lease recovery");
++      boolean afterFirstAttempt = false;
+       while (isRunning()) {
++        // Don't sleep before first attempt
++        if (afterFirstAttempt) {
++          LOG.trace("Sleep " + waitBeforeRoll + "ms after first lease recovery attempt.");
++          Threads.sleepWithoutInterrupt(waitBeforeRoll);
++        } else {
++          afterFirstAttempt = true;
++        }
+         FileStatus[] oldLogs = getLogFiles();
+         // Get Log-MaxID and recover lease on old logs
+         try {
+-- 
+1.7.9.5
+

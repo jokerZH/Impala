@@ -20,6 +20,7 @@ package org.apache.hadoop.hive.metastore.client;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.Function;
@@ -38,61 +39,24 @@ import org.apache.hadoop.hive.metastore.minihms.AbstractMetaStoreService;
 import org.apache.thrift.TException;
 import org.apache.thrift.transport.TTransportException;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @RunWith(Parameterized.class)
-public class TestDatabases {
-  private static final Logger LOG = LoggerFactory.getLogger(TestDatabases.class);
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should remove our own copy
-  private static Set<AbstractMetaStoreService> metaStoreServices = null;
+public class TestDatabases extends MetaStoreClientTest {
   private static final String DEFAULT_DATABASE = "default";
   private final AbstractMetaStoreService metaStore;
   private IMetaStoreClient client;
   private Database[] testDatabases = new Database[4];
 
-  @Parameterized.Parameters(name = "{0}")
-  public static List<Object[]> getMetaStoreToTest() throws Exception {
-    metaStoreServices = new HashSet<AbstractMetaStoreService>();
-    List<Object[]> result = MetaStoreFactoryForTests.getMetaStores();
-    for(Object[] test: result) {
-      metaStoreServices.add((AbstractMetaStoreService)test[1]);
-    }
-    return result;
-  }
-
-  public TestDatabases(String name, AbstractMetaStoreService metaStore) throws Exception {
+  public TestDatabases(String name, AbstractMetaStoreService metaStore) {
     this.metaStore = metaStore;
-    this.metaStore.start();
-  }
-
-  // Needed until there is no junit release with @BeforeParam, @AfterParam (junit 4.13)
-  // https://github.com/junit-team/junit4/commit/1bf8438b65858565dbb64736bfe13aae9cfc1b5a
-  // Then we should move this to @AfterParam
-  @AfterClass
-  public static void stopMetaStores() throws Exception {
-    for(AbstractMetaStoreService metaStoreService : metaStoreServices) {
-      try {
-        metaStoreService.stop();
-      } catch(Exception e) {
-        // Catch the exceptions, so every other metastore could be stopped as well
-        // Log it, so at least there is a slight possibility we find out about this :)
-        LOG.error("Error stopping MetaStoreService", e);
-      }
-    }
   }
 
   @Before
@@ -248,18 +212,9 @@ public class TestDatabases {
     client.getDatabase("no_such_database");
   }
 
-  @Test
+  @Test(expected = MetaException.class)
   public void testGetDatabaseNullName() throws Exception {
-    // Missing database name in the query
-    try {
-      client.getDatabase(null);
-      // TODO: Should have a check on the server side.
-      Assert.fail("Expected a NullPointerException or TTransportException to be thrown");
-    } catch (NullPointerException exception) {
-      // Expected exception - Embedded MetaStore
-    } catch (TTransportException exception) {
-      // Expected exception - Remote MetaStore
-    }
+    client.getDatabase(null);
   }
 
   @Test(expected = NoSuchObjectException.class)
@@ -267,32 +222,14 @@ public class TestDatabases {
     client.dropDatabase("no_such_database");
   }
 
-  @Test
+  @Test(expected = MetaException.class)
   public void testDropDatabaseNullName() throws Exception {
-    // Missing database in the query
-    try {
-      client.dropDatabase(null);
-      // TODO: Should be checked on server side
-      Assert.fail("Expected an NullPointerException or TTransportException to be thrown");
-    } catch (NullPointerException exception) {
-      // Expected exception - Embedded MetaStore
-    } catch (TTransportException exception) {
-      // Expected exception - Remote MetaStore
-    }
+    client.dropDatabase(null);
   }
 
-  @Test
+  @Test(expected = MetaException.class)
   public void testDropDatabaseDefaultDatabase() throws Exception {
-    // Check if it is possible to drop default database
-    try {
-      client.dropDatabase(DEFAULT_DATABASE);
-      // TODO: Should be checked on server side
-      Assert.fail("Expected an MetaException or TTransportException to be thrown");
-    } catch (MetaException exception) {
-      // Expected exception - Embedded MetaStore
-    } catch (TTransportException exception) {
-      // Expected exception - Remote MetaStore
-    }
+    client.dropDatabase(DEFAULT_DATABASE);
   }
 
   @Test
@@ -431,6 +368,7 @@ public class TestDatabases {
     Table testIndexTable =
         new TableBuilder()
             .setDbName(databaseName)
+            .setType(TableType.INDEX_TABLE.name())
             .setTableName("test_index_table")
             .addCol("test_col", "int")
             .build();
