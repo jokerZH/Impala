@@ -133,7 +133,7 @@ under the License.
     <dependency>
       <groupId>org.apache.sentry</groupId>
       <artifactId>sentry-provider-db</artifactId>
-      <version>1.5.1-cdh5.16.0-20180607.113500-70</version>
+      <version>${sentry.version}</version>
       <classifier>sh</classifier>
     </dependency>
 
