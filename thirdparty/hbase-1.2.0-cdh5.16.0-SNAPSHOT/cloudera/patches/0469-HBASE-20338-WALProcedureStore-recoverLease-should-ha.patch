@@ -1,7 +1,7 @@
 From c4382b64789ba6b03f7a7a9781a2332954463ce5 Mon Sep 17 00:00:00 2001
 From: Wei-Chiu Chuang <weichiu@cloudera.com>
 Date: Thu, 5 Apr 2018 14:11:29 -0700
-Subject: [PATCH 469/470] HBASE-20338 WALProcedureStore#recoverLease() should
+Subject: [PATCH 469/471] HBASE-20338 WALProcedureStore#recoverLease() should
  have fixed sleeps for retrying rollWriter()
 
 (cherry picked from commit 17a29ac2313774850f0cce116ee33ef79d007a34)

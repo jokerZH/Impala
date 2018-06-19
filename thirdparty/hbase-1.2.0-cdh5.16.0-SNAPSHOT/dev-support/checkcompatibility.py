@@ -159,7 +159,7 @@ def checkout_java_acc(force):
 
     logging.info("Downloading Java ACC...")
 
-    url = "https://github.com/lvc/japi-compliance-checker/archive/2.1.tar.gz"
+    url = "https://github.com/lvc/japi-compliance-checker/archive/2.4.tar.gz"
     scratch_dir = get_scratch_dir()
     path = os.path.join(scratch_dir, os.path.basename(url))
     jacc = urllib2.urlopen(url)
@@ -169,7 +169,7 @@ def checkout_java_acc(force):
     subprocess.check_call(["tar", "xzf", path],
                           cwd=scratch_dir)
 
-    shutil.move(os.path.join(scratch_dir, "japi-compliance-checker-2.1"),
+    shutil.move(os.path.join(scratch_dir, "japi-compliance-checker-2.4"),
                 os.path.join(acc_dir))
 
 
@@ -263,6 +263,12 @@ def process_java_acc_output(output):
             out_dict[line[:6]] = values_dict
     return out_dict
 
+def log_java_acc_version():
+    java_acc_path = os.path.join(
+        get_java_acc_dir(), "japi-compliance-checker.pl")
+
+    args = ["perl", java_acc_path, "-version"]
+    logging.info(check_output(args))
 
 def run_java_acc(src_name, src_jars, dst_name, dst_jars, annotations, skip_annotations):
     """ Run the compliance checker to compare 'src' and 'dst'. """
@@ -488,6 +494,7 @@ def main():
 
     # Download deps.
     checkout_java_acc(args.force_download)
+    log_java_acc_version()
 
     # Set up the build.
     scratch_dir = get_scratch_dir()

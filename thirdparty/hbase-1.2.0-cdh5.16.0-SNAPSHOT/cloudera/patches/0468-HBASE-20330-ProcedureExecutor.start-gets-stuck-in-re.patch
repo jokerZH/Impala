@@ -1,7 +1,7 @@
 From 505dec52177adb74c05f44d28739a5614deaf0d4 Mon Sep 17 00:00:00 2001
 From: Umesh Agashe <uagashe@cloudera.com>
 Date: Wed, 4 Apr 2018 16:07:50 -0700
-Subject: [PATCH 468/470] HBASE-20330 ProcedureExecutor.start() gets stuck in
+Subject: [PATCH 468/471] HBASE-20330 ProcedureExecutor.start() gets stuck in
  recover lease on store
 
 rollWriter() fails after creating the file and returns false. In next iteration of while loop in recoverLease() file list is refreshed.

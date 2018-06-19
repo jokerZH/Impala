@@ -1,7 +1,7 @@
 From cc7d36f117ee380f5cad576d12a636f380efc4ff Mon Sep 17 00:00:00 2001
 From: Toshihiro Suzuki <brfrn169@gmail.com>
 Date: Wed, 25 Apr 2018 13:34:03 -0700
-Subject: [PATCH 465/470] HBASE-20229 ConnectionImplementation.locateRegions()
+Subject: [PATCH 465/471] HBASE-20229 ConnectionImplementation.locateRegions()
  returns duplicated entries when region replication
  is on
 

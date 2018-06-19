@@ -1,3 +1,15 @@
+commit f2b0c99cb9d983d1a3d9960574d2b17d60d0c893
+Author: Mike Drob <mdrob@apache.org>
+Date:   Tue Jun 12 13:23:13 2018 -0500
+
+    HBASE-19377 Update Java API CC version
+    
+    Compatibility checker complaining about hash collisions, newer versions
+    use longer id strings.
+    
+    Ref: CDH-69714
+    Change-Id: I654681fa15028528da4a2bfa10acbf1fdfeb0de0
+
 commit e84c15d7dbe5b9938b167610697e0e57cb7b20ce
 Author: Josh Elser <elserj@apache.org>
 Date:   Thu May 31 13:02:53 2018 -0400

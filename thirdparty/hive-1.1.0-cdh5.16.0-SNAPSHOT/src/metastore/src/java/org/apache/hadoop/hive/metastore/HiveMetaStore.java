@@ -636,6 +636,10 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           transactionalListener.onConfigChange(cce);
         }
       }
+
+      if (ConfVars.METASTORE_TRY_DIRECT_SQL == confVar) {
+        HMSHandler.LOG.info("Direct SQL optimization = " + value);
+      }
     }
 
     @Override
@@ -2273,7 +2277,6 @@ public class HiveMetaStore extends ThriftHiveMetastore {
 
         Set<PartValEqWrapperLite> partsToAdd = new HashSet<>(parts.size());
         List<Partition> partitionsToAdd = new ArrayList<>(parts.size());
-        
         for (final Partition part : parts) {
           // Iterate through the partitions and validate them. If one of the partitions is
           // incorrect, an exception will be thrown before the threads which create the partition
@@ -2309,7 +2312,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
 
           partitionsToAdd.add(part);
         }
-        
+
         final AtomicBoolean failureOccurred = new AtomicBoolean(false);
         final Table table = tbl;
         List<Future<Partition>> partFutures = Lists.newArrayList();
@@ -2345,7 +2348,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
             }
           }));
         }
-        
+
         String errorMessage = null;
         for (Future<Partition> partFuture : partFutures) {
           try {
@@ -2370,7 +2373,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
             errorMessage = e.getMessage();
           }
         }
-        
+
         if (failureOccurred.get()) {
           throw new MetaException(errorMessage);
         }
@@ -2564,20 +2567,20 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           partitionsToAdd.add(part);
           partitionIterator.next();
         }
-        
+
         final AtomicBoolean failureOccurred = new AtomicBoolean(false);
         List<Future<Partition>> partFutures = new ArrayList<>(partitionsToAdd.size());
         final Table table = tbl;
-        
+
         final UserGroupInformation ugi;
         try {
           ugi = UserGroupInformation.getCurrentUser();
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
-        
+
         for (final Partition partition : partitionsToAdd) {
-          initializePartitionParameters(table, partition);          
+          initializePartitionParameters(table, partition);
           partFutures.add(threadPool.submit(new Callable<Partition>() {
             @Override public Partition call() throws Exception {
               ugi.doAs(new PrivilegedExceptionAction<Object>() {
@@ -2599,7 +2602,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
             }
           }));
         }
-        
+
         String errorMessage = null;
         for (Future<Partition> partFuture : partFutures) {
           try {
@@ -2625,7 +2628,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         if (failureOccurred.get()) {
           throw new MetaException(errorMessage);
         }
-        
+
         ms.addPartitions(dbName, tblName, partitionSpecProxy, ifNotExists);
 
         if (!transactionalListeners.isEmpty()) {
@@ -7021,6 +7024,9 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       HMSHandler.LOG.info("Options.maxWorkerThreads = "
           + maxWorkerThreads);
       HMSHandler.LOG.info("TCP keepalive = " + tcpKeepAlive);
+
+      boolean directSqlEnabled = HiveConf.getBoolVar(conf, ConfVars.METASTORE_TRY_DIRECT_SQL);
+      HMSHandler.LOG.info("Direct SQL optimization = " + directSqlEnabled);
 
       if (startLock != null) {
         signalOtherThreadsToStart(tServer, startLock, startCondition, startedServing);

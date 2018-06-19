@@ -1,7 +1,7 @@
 From 45f8f5a18e9eb735909a6677a49f7e3d155c7687 Mon Sep 17 00:00:00 2001
 From: zhangduo <zhangduo@apache.org>
 Date: Sun, 5 Feb 2017 09:12:50 +0800
-Subject: [PATCH 464/470] HBASE-17597
+Subject: [PATCH 464/471] HBASE-17597
  TestMetaWithReplicas.testMetaTableReplicaAssignment
  is flaky
 

@@ -1,7 +1,7 @@
 From ec8edfb8ff081450b815f5e94233a7525359839e Mon Sep 17 00:00:00 2001
 From: Chia-Ping Tsai <chia7712@gmail.com>
 Date: Sun, 18 Feb 2018 21:22:58 +0800
-Subject: [PATCH 460/470] HBASE-20016
+Subject: [PATCH 460/471] HBASE-20016
  TestCatalogJanitorInMemoryStates#testInMemoryForReplicaParentCleanup
  is flaky
 

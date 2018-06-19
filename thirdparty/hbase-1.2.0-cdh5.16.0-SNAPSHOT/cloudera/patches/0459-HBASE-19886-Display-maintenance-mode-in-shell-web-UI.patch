@@ -1,7 +1,7 @@
 From 0c8ac8ff50a7802ecb14ac330c90067f2fedd110 Mon Sep 17 00:00:00 2001
 From: Balazs Meszaros <balazs.meszaros@cloudera.com>
 Date: Mon, 29 Jan 2018 16:43:20 +0100
-Subject: [PATCH 459/470] HBASE-19886 Display maintenance mode in shell, web
+Subject: [PATCH 459/471] HBASE-19886 Display maintenance mode in shell, web
  UI
 
 (cherry picked from commit 1eef181a577dfd120708a8f859cc21546ec8516b)

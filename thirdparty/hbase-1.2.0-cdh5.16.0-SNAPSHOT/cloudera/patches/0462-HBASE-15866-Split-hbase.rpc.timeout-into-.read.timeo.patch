@@ -1,7 +1,7 @@
 From 44c3b0ef1b7bb4ffaf5f47f61fc6d311f92ebd04 Mon Sep 17 00:00:00 2001
 From: Vivek <vkoppuru@salesforce.com>
 Date: Fri, 5 Aug 2016 17:25:06 -0700
-Subject: [PATCH 462/470] HBASE-15866 Split hbase.rpc.timeout into
+Subject: [PATCH 462/471] HBASE-15866 Split hbase.rpc.timeout into
  *.read.timeout and *.write.timeout
 
 Signed-off-by: Andrew Purtell <apurtell@apache.org>

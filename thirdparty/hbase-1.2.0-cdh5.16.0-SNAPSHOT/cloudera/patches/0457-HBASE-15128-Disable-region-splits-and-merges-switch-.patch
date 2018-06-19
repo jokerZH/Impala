@@ -1,7 +1,7 @@
 From 1e2b13e61276be1ae1c6570f065d4d9176ffa67d Mon Sep 17 00:00:00 2001
 From: chenheng <chenheng@apache.org>
 Date: Mon, 29 Feb 2016 20:35:18 +0800
-Subject: [PATCH 457/470] HBASE-15128 Disable region splits and merges switch
+Subject: [PATCH 457/471] HBASE-15128 Disable region splits and merges switch
  in master
 
 (cherry picked from commit 6463bbaa4110e7b73fa67811ef7ad710e90f9fbd)
